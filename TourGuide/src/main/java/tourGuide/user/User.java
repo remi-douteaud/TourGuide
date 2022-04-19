@@ -18,6 +18,7 @@ public class User {
   private List<UserReward> userRewards = new ArrayList<>();
   private UserPreferences userPreferences = new UserPreferences();
   private List<Provider> tripDeals = new ArrayList<>();
+  private int rewardPointsTotal = 0;
 
   public User(UUID userId, String userName, String phoneNumber, String emailAddress) {
     this.userId = userId;
@@ -71,13 +72,22 @@ public class User {
   }
 
   public void addUserReward(UserReward userReward) {
-    if (userRewards.stream().noneMatch(r -> !r.attraction.attractionName.equals(userReward.attraction.attractionName))) {
+    if (!userRewards.contains(userReward)) {
       userRewards.add(userReward);
+      rewardPointsTotal += userReward.getRewardPoints();
     }
   }
 
   public List<UserReward> getUserRewards() {
     return userRewards;
+  }
+
+  public boolean hasEarnedReward(UserReward reward) {
+    return userRewards.stream().anyMatch(r -> r.equals(reward));
+  }
+
+  public int getRewardPointsTotal() {
+    return rewardPointsTotal;
   }
 
   public UserPreferences getUserPreferences() {

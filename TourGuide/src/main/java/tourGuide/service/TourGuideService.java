@@ -55,8 +55,7 @@ public class TourGuideService {
   }
 
   public VisitedLocation getUserLocation(User user) {
-    VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ? user.getLastVisitedLocation() : trackUserLocation(user);
-    return visitedLocation;
+    return user.getVisitedLocations().isEmpty() ? trackUserLocation(user) : user.getLastVisitedLocation();
   }
 
   public User getUser(String userName) {
@@ -84,7 +83,7 @@ public class TourGuideService {
   public VisitedLocation trackUserLocation(User user) {
     VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
     user.addToVisitedLocations(visitedLocation);
-    rewardsService.calculateRewards(user);
+    rewardsService.calculateRewards(user, visitedLocation);
     return visitedLocation;
   }
 
