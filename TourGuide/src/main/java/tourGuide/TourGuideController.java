@@ -78,7 +78,6 @@ public class TourGuideController {
 
   @RequestMapping("/gpsUtilTest")
   public String gpsUtilTest(@RequestParam String userName) {
-    System.err.println("coucou");
     tourGuideService.gpsUtilTest(getUser(userName));
     return "ok";
   }
