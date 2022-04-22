@@ -81,7 +81,9 @@ public class TourGuideService {
   }
 
   public VisitedLocation trackUserLocation(User user) {
+    logger.debug("yo");
     VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+    logger.debug("yo2");
     user.addToVisitedLocations(visitedLocation);
     rewardsService.calculateRewards(user, visitedLocation);
     return visitedLocation;
@@ -147,6 +149,10 @@ public class TourGuideService {
   private Date getRandomTime() {
     LocalDateTime localDateTime = LocalDateTime.now().minusDays(new Random().nextInt(30));
     return Date.from(localDateTime.toInstant(ZoneOffset.UTC));
+  }
+
+  public void gpsUtilTest(User user) {
+    gpsUtil.getUserLocation(user.getUserId());
   }
 
 }
