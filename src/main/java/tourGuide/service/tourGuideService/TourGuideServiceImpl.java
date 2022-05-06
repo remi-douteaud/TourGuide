@@ -1,4 +1,4 @@
-package tourGuide.service;
+package tourGuide.service.tourGuideService;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -11,6 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
@@ -19,31 +22,36 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
+import rewardCentral.RewardCentral;
 import tourGuide.DTO.AttractionDTO;
 import tourGuide.DTO.LocationDTO;
-import tourGuide.DTO.PriceDTO;
 import tourGuide.DTO.VisitedLocationDTO;
 import tourGuide.helper.InternalTestHelper;
-import tourGuide.service.api.ApiRequestService;
 import tourGuide.service.rewardService.RewardsService;
 import tourGuide.user.User;
-import tourGuide.user.UserReward;
 import tripPricer.Provider;
+import tripPricer.TripPricer;
 
 @Service
 public class TourGuideServiceImpl implements TourGuideService {
   private Logger logger = LoggerFactory.getLogger(TourGuideServiceImpl.class);
-
   boolean testMode = true;
 
   @Autowired
   private RewardsService rewardsService;
 
   @Autowired
-  private ApiRequestService apiRequestService;
+  TripPricer tripPricer;
+
+  @Autowired
+  GpsUtil gpsUtil;
+
+  @Autowired
+  RewardCentral rewardCentral;
 
   public TourGuideServiceImpl() {
     if (testMode) {
@@ -52,10 +60,6 @@ public class TourGuideServiceImpl implements TourGuideService {
       initializeInternalUsers();
       logger.debug("Finished initializing users");
     }
-  }
-
-  public List<UserReward> getUserRewards(User user) {
-    return user.getUserRewards();
   }
 
   public VisitedLocation getUserLocation(User user) {
@@ -81,25 +85,36 @@ public class TourGuideServiceImpl implements TourGuideService {
   public List<Provider> getTripDeals(User user) {
     int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
 
-    PriceDTO priceDTO = new PriceDTO(tripPricerApiKey, user.getUserId(),
+    List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(),
         user.getUserPreferences().getNumberOfAdults(), user.getUserPreferences().getNumberOfChildren(),
         user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
 
-    List<Provider> providers = apiRequestService.getPrice(priceDTO);
     user.setTripDeals(providers);
     return providers;
   }
 
   public VisitedLocation trackUserLocation(User user) {
-    VisitedLocation visitedLocation = apiRequestService.getUserLocation(user.getUserId());
+    VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
     user.addToVisitedLocations(visitedLocation);
     rewardsService.calculateRewards(user);
     return visitedLocation;
   }
 
+  @Override
+  public Future<VisitedLocation> trackUserLocationAsync(User user) {
+    CompletableFuture<VisitedLocation> completableFuture = new CompletableFuture<>();
+
+    Executors.newCachedThreadPool().submit(() -> {
+      completableFuture.complete(trackUserLocation(user));
+      return;
+    });
+
+    return completableFuture;
+  }
+
   public List<AttractionDTO> getNearByAttractions(User user) {
     VisitedLocation visitedLocation = getUserLocation(user);
-    List<Attraction> allAttractions = apiRequestService.getAttractions();
+    List<Attraction> allAttractions = gpsUtil.getAttractions();
     Collections.sort(allAttractions, new AttractionComparator(visitedLocation.location));
     List<AttractionDTO> firstFiveNearbyAttractions = new ArrayList<>();
 
@@ -114,6 +129,7 @@ public class TourGuideServiceImpl implements TourGuideService {
 
       AttractionDTO attractionDTO = new AttractionDTO(currentAttraction,
           rewardsService.getRewardPoints(currentAttraction, user), visitedLocation, distance);
+
       firstFiveNearbyAttractions.add(attractionDTO);
     }
 
@@ -150,7 +166,14 @@ public class TourGuideServiceImpl implements TourGuideService {
   // internal users are provided and stored in memory
   private final Map<String, User> internalUserMap = new HashMap<>();
 
+  @Override
+  public void setInternalUsersNumberCount(int count) {
+    InternalTestHelper.setInternalUserNumber(count);
+    initializeInternalUsers();
+  }
+
   private void initializeInternalUsers() {
+    internalUserMap.clear();
     IntStream.range(0, InternalTestHelper.getInternalUserNumber()).forEach(i -> {
       String userName = "internalUser" + i;
       String phone = "000";

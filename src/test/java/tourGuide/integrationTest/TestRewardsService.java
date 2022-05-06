@@ -1,4 +1,4 @@
-package tourGuide;
+package tourGuide.integrationTest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -8,38 +8,42 @@ import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
 
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.VisitedLocation;
 import tourGuide.helper.InternalTestHelper;
-import tourGuide.service.TourGuideService;
 import tourGuide.service.rewardService.RewardsService;
+import tourGuide.service.tourGuideService.TourGuideService;
 import tourGuide.user.User;
 import tourGuide.user.UserReward;
 
+@SpringBootTest
 public class TestRewardsService {
 
   @Autowired
   RewardsService rewardsService;
 
   @Autowired
+  GpsUtil gpsUtil;
+
+  @Autowired
   TourGuideService tourGuideService;
 
-  @BeforeAll
-  private static void beforeAll() {
+  @BeforeEach
+  public void beforeEach() {
     Locale.setDefault(Locale.US);
   }
 
   @Test
   public void userGetRewards() {
-    GpsUtil gpsUtil = new GpsUtil();
 
     InternalTestHelper.setInternalUserNumber(0);
+    rewardsService.setProximityBuffer(10);
 
     User user = new User(UUID.randomUUID(), "jon", "000", "jon@tourGuide.com");
     Attraction attraction = gpsUtil.getAttractions().get(0);
@@ -49,24 +53,21 @@ public class TestRewardsService {
     assertTrue(userRewards.size() == 1);
   }
 
-  @Disabled
   @Test
   public void isWithinAttractionProximity() {
-    GpsUtil gpsUtil = new GpsUtil();
     Attraction attraction = gpsUtil.getAttractions().get(0);
     assertTrue(rewardsService.isWithinAttractionProximity(attraction, attraction));
   }
 
-  @Disabled
   @Test
   public void nearAllAttractions() {
-    GpsUtil gpsUtil = new GpsUtil();
     rewardsService.setProximityBuffer(Integer.MAX_VALUE);
 
     InternalTestHelper.setInternalUserNumber(1);
 
-    rewardsService.calculateRewards(tourGuideService.getAllUsers().get(0));
-    List<UserReward> userRewards = tourGuideService.getUserRewards(tourGuideService.getAllUsers().get(0));
+    User user = tourGuideService.getAllUsers().get(0);
+    rewardsService.calculateRewards(user);
+    List<UserReward> userRewards = user.getUserRewards();
 
     assertEquals(gpsUtil.getAttractions().size(), userRewards.size());
   }

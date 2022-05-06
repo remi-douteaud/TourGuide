@@ -12,11 +12,6 @@ import tripPricer.TripPricer;
 public class TourGuideModule {
 
 	@Bean
-	public GpsUtil getGpsUtil() {
-		return new GpsUtil();
-	}
-
-	@Bean
 	public RewardCentral getRewardCentral() {
 		return new RewardCentral();
 	}
@@ -24,6 +19,11 @@ public class TourGuideModule {
 	@Bean
 	public TripPricer getTripPricer() {
 		return new TripPricer();
+	}
+
+	@Bean
+	public GpsUtil getGpsUtil() {
+		return new GpsUtil();
 	}
 
 	@Bean
